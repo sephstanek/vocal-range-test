@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tour de Fierce | Vocal Range Test</title>
+<style>
+  :root{
+    --bg1:#4d405b;
+    --bg2:#322a46;
+    --text:#eee;
+    --muted:#c9c3d7;
+    --accent:#ffb52b;
+    --button:#e6e6e6;
+    --bar:#b97474;
+    --barFill:#ff9a1f;
+  }
+  html,body{
+    height:100%; margin:0; background: radial-gradient(1200px 600px at 20% 20%, var(--bg1), var(--bg2));
+    color:var(--text); font: 18px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Helvetica,Arial,sans-serif;
+  }
+  .wrap{ max-width:1100px; margin: 32px auto; padding: 12px 20px;}
+  h1{ font-weight:800; letter-spacing:.3px; margin:0 0 18px; }
+  p.muted{ color:var(--muted); margin:6px 0 22px; }
+  .grid{ display:grid; grid-template-columns: 1.2fr 1fr; gap:28px; align-items:start; }
+  .buttons{ display:flex; flex-wrap:wrap; gap:12px; align-items:center; }
+  button{
+    appearance:none; border:0; padding:14px 20px; border-radius:22px;
+    background:linear-gradient(#ffd27a,#ffb52b); color:#1d142a; font-weight:800; letter-spacing:.3px; cursor:pointer;
+  }
+  button.secondary{ background:linear-gradient(#ffffff,#dcdcdc); }
+  .label{ color:var(--muted); margin-top:8px; }
+  .readout{ margin-top:6px; min-height:28px; font-size:28px; font-weight:700; }
+  .row{ display:flex; justify-content:space-between; gap:16px; margin:16px 0; }
+  .cell{ flex:1; }
+  .meter{ height:16px; background:var(--bar); border-radius:6px; overflow:hidden; }
+  .fill{ width:12px; height:100%; background:var(--barFill); }
+  .rangebox{ margin-top:16px; padding-top:10px; border-top:1px solid rgba(255,255,255,.25); }
+  small.code{ display:block; color:#bbb; margin-top:10px; }
+  .status{ min-height:24px; font-weight:600; color:#ddd; }
+  .footer{ margin-top:26px; color:#cfc6e2; font-size:14px; }
+  a.cta{ display:inline-block; margin-top:10px; padding:10px 16px; border-radius:10px; background:#fff; color:#221a36; text-decoration:none; font-weight:800; }
+  @media (max-width: 900px){ .grid{ grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Vocal Range Test | Tour de Fierce</h1>
+    <p class="muted">Private &amp; instant. Runs in your browser — no audio leaves your device.</p>
+
+    <div class="grid">
+      <section>
+        <div class="buttons">
+          <button id="startBtn">START MICROPHONE</button>
+          <button id="stopBtn" class="secondary">STOP</button>
+          <button id="lowBtn" class="secondary">MARK LOWEST</button>
+          <button id="highBtn" class="secondary">MARK HIGHEST</button>
+        </div>
+        <div class="label">Status</div>
+        <div class="status" id="status">idle</div>
+
+        <div style="height:14px"></div>
+        <div class="meter"><div id="stability" class="fill"></div></div>
+      </section>
+
+      <section>
+        <div class="row">
+          <div class="cell">
+            <div class="label">Current Note</div>
+            <div id="note" class="readout">—</div>
+          </div>
+          <div class="cell">
+            <div class="label">Frequency</div>
+            <div id="hz" class="readout">— Hz</div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="cell">
+            <div class="label">Cents</div>
+            <div id="cents" class="readout">—</div>
+          </div>
+        </div>
+
+        <div class="row rangebox">
+          <div class="cell">
+            <div class="label">Lowest Note:</div>
+            <div id="low" class="readout" style="font-size:22px">—</div>
+          </div>
+          <div class="cell">
+            <div class="label">Highest Note:</div>
+            <div id="high" class="readout" style="font-size:22px">—</div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="cell">
+            <div class="label">Range</div>
+            <div id="range" class="readout" style="font-size:22px">—</div>
+          </div>
+          <div class="cell">
+            <div class="label">Octaves</div>
+            <div id="octs" class="readout" style="font-size:22px">—</div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="footer">
+      For best accuracy: quiet room, 6–12 inches from mic, steady “ah” vowel. Nothing is recorded or uploaded.
+      <a class="cta" href="https://www.tourdefierce.vip/service-page/voice-lessons-online" target="_blank" rel="noopener">Unlock your next note → Book Voice Lessons</a>
+    </div>
+
+  </div>
+
+<script>
+(() => {
+  let audioCtx, analyser, micSource, rafId;
+  let floatBuf, running = false, smoothHz = 0;
+
+  const SMOOTH = 0.2;
+  const A4 = 440, A4_MIDI = 69;
+  const NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+
+  const $ = (sel) => document.querySelector(sel);
+  const setStatus = (t) => $('#status').textContent = t;
+  const resizeMeter = (p) => $('#stability').style.width = (Math.max(0,Math.min(1,p))*($('.meter').clientWidth))+'px';
+
+  function hzToMidi(hz){ return 12 * Math.log2(hz / A4) + A4_MIDI; }
+  function midiToHz(m){ return A4 * Math.pow(2, (m - A4_MIDI)/12); }
+  function midiToNoteName(m){
+    const n = Math.round(m);
+    const name = NOTE_NAMES[(n + 1200) % 12];
+    const octave = Math.floor(n/12) - 1;
+    return name + octave;
+  }
+  function centsOff(hz){
+    const m = hzToMidi(hz);
+    const nearest = Math.round(m);
+    const nearestHz = midiToHz(nearest);
+    const cents = 1200 * Math.log2(hz/nearestHz);
+    return { cents, nearestMidi: nearest, nearestHz };
+  }
+
+  function autoCorrelateFloat32(buf, sampleRate){
+    const SIZE = buf.length;
+    let rms = 0; for (let i=0;i<SIZE;i++) rms += buf[i]*buf[i];
+    rms = Math.sqrt(rms/SIZE);
+    if (rms < 0.01) return -1;
+
+    let mean = 0; for (let i=0;i<SIZE;i++) mean += buf[i]; mean/=SIZE;
+    for (let i=0;i<SIZE;i++) buf[i] -= mean;
+
+    const MAX = Math.floor(SIZE/2);
+    let best=-1, bestCorr=0;
+    const corr = new Array(MAX).fill(0);
+    for (let off=0; off<MAX; off++){
+      let c=0; for (let i=0;i<MAX;i++) c += buf[i]*buf[i+off];
+      corr[off]=c; if (c>bestCorr){ bestCorr=c; best=off; }
+    }
+    if (best<=0) return -1;
+
+    const x1=corr[best-1]||0, x2=corr[best], x3=corr[best+1]||0;
+    const denom=(x1-2*x2+x3);
+    const shift = denom ? 0.5*(x1-x3)/denom : 0;
+    const period = best + shift;
+    const pitch = sampleRate/period;
+    return (!isFinite(pitch) || pitch<=40 || pitch>=2000) ? -1 : pitch;
+  }
+
+  function setReadoutBlank(){
+    $('#note').textContent = '—';
+    $('#hz').textContent = '— Hz';
+    $('#cents').textContent = '—';
+    resizeMeter(0);
+  }
+
+  let lowestHz = null, highestHz = null;
+  function updateRange(){
+    if (lowestHz && highestHz){
+      const lowName  = midiToNoteName(Math.round(hzToMidi(lowestHz)));
+      const highName = midiToNoteName(Math.round(hzToMidi(highestHz)));
+      $('#low').textContent = lowName;
+      $('#high').textContent = highName;
+      $('#range').textContent = `${lowName} – ${highName}`;
+      $('#octs').textContent = (Math.log2(highestHz/lowestHz)).toFixed(2) + ' octaves';
+    } else {
+      $('#low').textContent = '—';
+      $('#high').textContent = '—';
+      $('#range').textContent = '—';
+      $('#octs').textContent = '—';
+    }
+  }
+
+  async function start(){
+    if (running) return;
+    setStatus('asking mic…');
+
+    const modern = navigator.mediaDevices && navigator.mediaDevices.getUserMedia;
+    const legacy = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
+    const legacyPromise = (c) => new Promise((res, rej) =>
+      (navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia)
+      .call(navigator, c, res, rej)
+    );
+
+    try{
+      const strict = { audio:{ echoCancellation:false, noiseSuppression:false, autoGainControl:false } };
+      const stream = modern ? await navigator.mediaDevices.getUserMedia(strict) : await legacyPromise(strict);
+      await initStream(stream);
+    }catch(e1){
+      console.warn('Strict getUserMedia failed:', e1 && e1.name || e1);
+      try{
+        const loose = { audio:true };
+        const stream2 = modern ? await navigator.mediaDevices.getUserMedia(loose) : await legacyPromise(loose);
+        await initStream(stream2);
+      }catch(e2){
+        console.error('Permissive getUserMedia failed:', e2);
+        const name = (e2 && e2.name) || (typeof e2 === 'string' ? e2 : 'Unsupported');
+        setStatus('mic blocked: ' + name);
+      }
+    }
+  }
+
+  async function initStream(stream){
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended' && audioCtx.resume) {
+      try { await audioCtx.resume(); } catch(_) {}
+    }
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 2048;
+
+    micSource = audioCtx.createMediaStreamSource(stream);
+    micSource.connect(analyser);
+
+    floatBuf = new Float32Array(analyser.fftSize);
+    running = true;
+    setStatus('listening');
+    loop();
+  }
+
+  function stop(){
+    running = false;
+    if (rafId) cancelAnimationFrame(rafId);
+    if (micSource && micSource.mediaStream){
+      micSource.mediaStream.getTracks().forEach(t=>t.stop());
+    }
+    if (audioCtx) audioCtx.close();
+    setStatus('stopped');
+    setReadoutBlank();
+  }
+
+  function loop(){
+    if (!running) return;
+    rafId = requestAnimationFrame(loop);
+    analyser.getFloatTimeDomainData(floatBuf);
+    const hz = autoCorrelateFloat32(floatBuf, audioCtx.sampleRate);
+    if (hz > 0){
+      if (smoothHz === 0) smoothHz = hz;
+      smoothHz = smoothHz*(1-SMOOTH) + hz*SMOOTH;
+      const { cents, nearestMidi } = centsOff(smoothHz);
+      $('#note').textContent  = midiToNoteName(nearestMidi);
+      $('#hz').textContent    = smoothHz.toFixed(1) + ' Hz';
+      $('#cents').textContent = (cents>=0?'+':'') + cents.toFixed(0) + ' cents';
+      const dist = Math.min(100, Math.abs(cents));
+      resizeMeter(1 - dist/100);
+    } else {
+      setReadoutBlank();
+    }
+  }
+
+  // wire buttons
+  $('#startBtn').addEventListener('click', start);
+  $('#stopBtn').addEventListener('click', stop);
+  $('#lowBtn').addEventListener('click', () => {
+    if (smoothHz>0){
+      lowestHz = (!lowestHz || smoothHz < lowestHz) ? smoothHz : lowestHz;
+      try{ localStorage.setItem('tdf_low', String(lowestHz)); }catch(_){}
+      updateRange();
+    }
+  });
+  $('#highBtn').addEventListener('click', () => {
+    if (smoothHz>0){
+      highestHz = (!highestHz || smoothHz > highestHz) ? smoothHz : highestHz;
+      try{ localStorage.setItem('tdf_high', String(highestHz)); }catch(_){}
+      updateRange();
+    }
+  });
+
+  // restore saved
+  const l = Number(localStorage.getItem('tdf_low')||'');
+  const h = Number(localStorage.getItem('tdf_high')||'');
+  if (!isNaN(l) && l>0) lowestHz = l;
+  if (!isNaN(h) && h>0) highestHz = h;
+  updateRange();
+  resizeMeter(0.05);
+})();
+</script>
+</body>
+</html>
