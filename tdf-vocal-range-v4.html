@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tour de Fierce | Vocal Range Test</title>
+<style>
+  :root{
+    --bg1:#4d405b; --bg2:#322a46; --text:#eee; --muted:#c9c3d7;
+    --accent:#ffb52b; --button:#e6e6e6; --track:#5a4a5a; --fill:#35d07f;
+    --live:#4afc9e; --warn:#ffd27a; --dot:#ff6a6a;
+    --card:#2f2741; --cardBorder:rgba(255,255,255,.14);
+  }
+  html,body{height:100%;margin:0;background:radial-gradient(1200px 600px at 20% 20%,var(--bg1),var(--bg2));color:var(--text);font:18px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Helvetica,Arial,sans-serif}
+  .wrap{max-width:1100px;margin:32px auto;padding:12px 20px}
+  h1{font-weight:800;letter-spacing:.3px;margin:0 0 6px}
+  p.muted{color:var(--muted);margin:6px 0 22px}
+  .grid{display:grid;grid-template-columns:1.1fr 1fr;gap:28px;align-items:start}
+  .buttons{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+  button{appearance:none;border:0;padding:14px 20px;border-radius:22px;background:linear-gradient(#ffd27a,#ffb52b);color:#1d142a;font-weight:800;letter-spacing:.3px;cursor:pointer}
+  button.secondary{background:linear-gradient(#ffffff,#dcdcdc)}
+  .label{color:var(--muted);margin-top:8px}
+  .readout{margin-top:6px;min-height:28px;font-size:28px;font-weight:700}
+  .row{display:flex;justify-content:space-between;gap:16px;margin:16px 0}
+  .cell{flex:1}
+
+  /* Input Level meter (RMS) */
+  .levelWrap{display:flex;align-items:center;gap:12px;margin-top:14px}
+  .liveDot{width:12px;height:12px;border-radius:50%;background:#aaa;box-shadow:0 0 0 0 rgba(255,255,255,0);transition:all .2s ease}
+  .liveDot.on{background:var(--live);box-shadow:0 0 10px 3px rgba(74,252,158,.35)}
+  .meter{flex:1;height:14px;background:var(--track);border-radius:7px;overflow:hidden}
+  .fill{width:0;height:100%;background:var(--fill);transition:width .08s linear}
+
+  .status{min-height:24px;font-weight:700}
+  .hint{font-size:14px;color:#ddd;margin-top:6px}
+
+  .footer{margin-top:18px;color:#cfc6e2;font-size:14px}
+  a.cta{display:inline-block;margin-top:10px;padding:10px 16px;border-radius:10px;background:#fff;color:#221a36;text-decoration:none;font-weight:800}
+
+  .tog{display:flex;align-items:center;gap:10px;margin-top:8px;font-size:14px;color:#eae2f5}
+  input[type=checkbox]{transform:scale(1.2)}
+  .flash{animation:flash .6s ease}
+  @keyframes flash{from{background:rgba(255,255,255,.25)} to{background:transparent}}
+  @media (max-width:900px){.grid{grid-template-columns:1fr}}
+
+  /* Voice-type card */
+  .card{margin-top:22px;background:var(--card);border:1px solid var(--cardBorder);border-radius:14px;padding:16px}
+  .card h3{margin:0 0 6px 0;font-size:20px}
+  .card p{margin:6px 0 10px 0;color:#efeaf9}
+  .ctaRow{display:flex;gap:10px;flex-wrap:wrap}
+  .btn{display:inline-block;padding:10px 14px;border-radius:10px;text-decoration:none;font-weight:800;background:#fff;color:#221a36}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Vocal Range Test | Tour de Fierce</h1>
+  <p class="muted">Smoothing on. Private &amp; on-device — nothing is uploaded.</p>
+
+  <div class="grid">
+    <section>
+      <div class="buttons">
+        <button id="startBtn">START MICROPHONE</button>
+        <button id="stopBtn" class="secondary">STOP</button>
+        <button id="resetBtn" class="secondary">RESET TEST</button>
+        <button id="lowBtn" class="secondary">MARK LOWEST</button>
+        <button id="highBtn" class="secondary">MARK HIGHEST</button>
+        <button id="midBtn" class="secondary">MARK COMFORTABLE</button>
+      </div>
+
+      <div class="tog"><label><input type="checkbox" id="strictChk"> Strict mode (harder, more precise)</label></div>
+
+      <div class="label">Status</div>
+      <div class="status" id="status">idle</div>
+
+      <!-- Input level indicator -->
+      <div class="levelWrap">
+        <div id="liveDot" class="liveDot" title="Mic live"></div>
+        <div class="meter"><div id="levelFill" class="fill"></div></div>
+      </div>
+      <div class="hint">This bar shows <b>loudness</b> (not pitch). You can mark at any time.</div>
+
+      <!-- Voice-type result & CTAs -->
+      <div id="resultCard" class="card" style="display:none">
+        <h3 id="partTitle">Voice Part</h3>
+        <p id="partCopy"></p>
+        <div class="ctaRow">
+          <a id="ctaLearn" class="btn" href="https://www.tourdefierce.vip/services/voice-coaching" target="_blank" rel="noopener">Learn about coaching</a>
+          <a id="ctaBook" class="btn" href="https://www.tourdefierce.vip/voice-lessons-online" target="_blank" rel="noopener">Book now</a>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="row">
+        <div class="cell">
+          <div class="label">Current Note</div>
+          <div id="note" class="readout">—</div>
+        </div>
+        <div class="cell">
+          <div class="label">Frequency</div>
+          <div id="hz" class="readout">— Hz</div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="cell">
+          <div class="label">Cents</div>
+          <div id="cents" class="readout">—</div>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:18px;border-top:1px solid rgba(255,255,255,.25);padding-top:12px">
+        <div class="cell flash" id="lowBox">
+          <div class="label">Lowest Note</div>
+          <div id="low" class="readout" style="font-size:22px">—</div>
+        </div>
+        <div class="cell flash" id="highBox">
+          <div class="label">Highest Note</div>
+          <div id="high" class="readout" style="font-size:22px">—</div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="cell flash" id="midBox">
+          <div class="label">Comfortable Note</div>
+          <div id="mid" class="readout" style="font-size:22px">—</div>
+        </div>
+        <div class="cell">
+          <div class="label">Range</div>
+          <div id="range" class="readout" style="font-size:22px">—</div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="cell">
+          <div class="label">Octaves</div>
+          <div id="octs" class="readout" style="font-size:22px">—</div>
+        </div>
+        <div class="cell">
+          <div class="label">Voice Part</div>
+          <div id="part" class="readout" style="font-size:22px">—</div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="footer">
+    Ready to train that range? <a class="cta" href="https://www.tourdefierce.vip/voice-lessons-online" target="_blank" rel="noopener">Book Voice Lessons Online</a>
+  </div>
+</div>
+
+<script>
+(() => {
+  // --- helpers ---
+  const $ = s => document.querySelector(s);
+  const NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+  const A4=440, A4_MIDI=69;
+  function hzToMidi(hz){ return 12*Math.log2(hz/A4)+A4_MIDI; }
+  function midiToHz(m){ return A4*Math.pow(2,(m-A4_MIDI)/12); }
+  function midiToNoteName(m){ const n=Math.round(m); return NOTE_NAMES[(n+1200)%12]+(Math.floor(n/12)-1); }
+  function centsOff(hz){ const m=hzToMidi(hz), n=Math.round(m); return { cents:1200*Math.log2(hz/midiToHz(n)), nearestMidi:n }; }
+  const median = arr => { const a=[...arr].sort((x,y)=>x-y); const m=Math.floor(a.length/2); return a.length%2?a[m]:(a[m-1]+a[m])/2; };
+  function flash(el){ el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
+
+  // --- YIN detector (lenient) ---
+  function yin(buf, sampleRate){
+    const W = buf.length, tauMax = Math.min(4096, Math.floor(W/2));
+    const diff = new Float32Array(tauMax);
+    let minTau=-1, minCMND=1;
+    for (let tau=1;tau<tauMax;tau++){
+      let sum=0; for (let i=0;i<W-tau;i++){ const d=buf[i]-buf[i+tau]; sum+=d*d; } diff[tau]=sum;
+    }
+    let run=0; const cmnd=new Float32Array(tauMax); cmnd[0]=1;
+    for (let tau=1;tau<tauMax;tau++){ run+=diff[tau]; cmnd[tau]=diff[tau]*(tau/run); if (tau>2 && cmnd[tau]<minCMND){minCMND=cmnd[tau];minTau=tau;} }
+    if (minTau<2 || minCMND>0.3) return -1;
+    const x0=cmnd[minTau-1]||cmnd[minTau], x1=cmnd[minTau], x2=cmnd[minTau+1]||cmnd[minTau];
+    const shift=(x2-x0)/(2*(2*x1-x2-x0) || 1);
+    const hz=sampleRate/(minTau+shift);
+    return (hz<40||hz>2000||!isFinite(hz)) ? -1 : hz;
+  }
+
+  // --- audio state ---
+  let ctx, analyser, source, rafId;
+  let running=false, floatBuf;
+  const fftSize = 8192;
+  const pitchWin=[]; const MAX_FRAMES = 30; // ~0.5–0.7s window
+  let emaHz = 0; const EMA_A = 0.15;
+
+  // input level RMS meter
+  function rms(arr){ let s=0; for(let i=0;i<arr.length;i++){ const v=arr[i]; s+=v*v; } return Math.sqrt(s/arr.length); }
+  function setLevel(p){ $('#levelFill').style.width=(Math.min(1,Math.max(0,p))*($('.meter').clientWidth))+'px'; }
+  function micDot(on){ $('#liveDot').classList.toggle('on', !!on); }
+
+  function setStatus(t){ $('#status').textContent=t; }
+  function setBlank(){ $('#note').textContent='—'; $('#hz').textContent='— Hz'; $('#cents').textContent='—'; setLevel(0); micDot(false); }
+
+  let lowestHz=null, highestHz=null, midHz=null;
+
+  function updateRangeUI(){
+    $('#low').textContent = lowestHz ? midiToNoteName(Math.round(hzToMidi(lowestHz))) : '—';
+    $('#high').textContent = highestHz ? midiToNoteName(Math.round(hzToMidi(highestHz))) : '—';
+    $('#mid').textContent = midHz ? midiToNoteName(Math.round(hzToMidi(midHz))) : '—';
+
+    if (lowestHz && highestHz){
+      const lNote = midiToNoteName(Math.round(hzToMidi(lowestHz)));
+      const hNote = midiToNoteName(Math.round(hzToMidi(highestHz)));
+      $('#range').textContent = `${lNote} – ${hNote}`;
+      $('#octs').textContent = (Math.log2(highestHz/lowestHz)).toFixed(2)+' octaves';
+    } else {
+      $('#range').textContent = '—';
+      $('#octs').textContent = '—';
+    }
+  }
+
+  // Voice-type classifier with friendly heuristics
+  function classify(lowHz, highHz, midHz){
+    if (!lowHz || !highHz) return null;
+    const low = hzToMidi(lowHz), high = hzToMidi(highHz), mid = midHz? hzToMidi(midHz) : (low+high)/2;
+    const span = high - low;
+
+    function score(cond){ return cond ? 1 : 0; }
+
+    const E2=40, A2=45, C3=48, D3=50, E3=52, F3=53, G3=55, A3=57, C4=60, E4=64, A4=69, C5=72, F5=77, A5=81, C6=84;
+
+    const profiles = [
+      {name:"Soprano",   s: score(low>=C4) + score(high>=C6) + score(mid>=E4), prio:3},
+      {name:"Mezzo-Soprano", s: score(low>=A3 && low<=C4) + score(high>=A5-2 && high<=C6) + score(mid>=C4 && mid<=E4), prio:2},
+      {name:"Alto / Contralto", s: score(low<=F3+1) + score(high<=F5+2) + score(mid>=A3-1 && mid<=C4+1), prio:1},
+      {name:"Tenor",     s: score(low>=C3-1) + score(high>=C5) + score(mid>=E3 && mid<=G3+1), prio:2},
+      {name:"Baritone",  s: score(low>=A2-1 && low<=C3) + score(high>=A4-2 && high<=C5+1) + score(mid>=D3-1 && mid<=F3+1), prio:2},
+      {name:"Bass",      s: score(low<=E2) + score(high<=E4+1) + score(mid>=A2-1 && mid<=D3+1), prio:3},
+    ];
+
+    const typicalSpan = {
+      "Soprano": 24, "Mezzo-Soprano": 22, "Alto / Contralto": 20,
+      "Tenor": 22, "Baritone": 20, "Bass": 18
+    };
+
+    let best=null;
+    for (const p of profiles){
+      if (!best || p.s>best.s || (p.s===best.s && p.prio>best.prio) ||
+          (p.s===best.s && p.prio===best.prio && Math.abs(span-typicalSpan[p.name]) < Math.abs(span-typicalSpan[best.name]))){
+        best=p;
+      }
+    }
+    return (best && best.s>=2) ? best.name : null;
+  }
+
+  const copyByType = {
+    "Bass": `🎸 You’re in luck — at Tour de Fierce, it’s all about that bass!
+Our Founder & CEO Joseph Stanek sings bass professionally all around the world — so he knows exactly how to make those low notes AND high notes rumble.
+Book your lesson and you'll be shaking the walls in no time.`,
+    "Baritone": `🎤 All hail the baritone royalty.
+Joseph Stanek — Tour de Fierce’s Founder and CEO — is one too, and he’s ready to help you find that golden middle ground between grit and glamour.
+Book your lesson and join the baritone brotherhood.`,
+    "Tenor": `☀️ Up there living your best life? That’s the tenor way.
+Most of Joseph's performing career is spent singing the high notes no one else can hit, so you're in the right place! Joseph has also worked alongside legends like Andrea Bocelli, so if you’re chasing those soaring highs, you’re in very good company.
+Book your lesson and belt to the heavens.`,
+    "Alto / Contralto": `💃 Sultry, rich, and full of depth — welcome to the alto life.
+Joseph’s specialty is working with lower treble voices... so buckle up, you're in for an exciting ride! He's guided countless contraltos and altos toward confidence and control — no pushing, no pressure, just pure power.
+Book your lesson and own your lower glow.`,
+    "Mezzo-Soprano": `💫 Mezzo magic in the house!
+Joseph’s coached hundreds of mezzos — including powerhouse Jennifer Hudson — so he knows how to bring fire and finesse to your middle range.
+Book your lesson and let your voice shine.`,
+    "Soprano": `👑 High notes? Please. You call that a Tuesday.
+One of Joseph’s closest clients, Kristin Chenoweth, has proven that sopranos can be both fierce and flawless — and you can too.
+Book your lesson and really learn how to sparkle up top.`
+  };
+
+  function updateClassification(){
+    const part = classify(lowestHz, highestHz, midHz);
+    const partEl = $('#part');
+    const card = $('#resultCard');
+    if (part){
+      partEl.textContent = part;
+      $('#partTitle').textContent = part;
+      $('#partCopy').textContent = copyByType[part] || "";
+      card.style.display = 'block';
+    } else {
+      partEl.textContent = '—';
+      card.style.display = 'none';
+    }
+  }
+
+  // audio lifecycle
+  async function start(){
+    if (running) return;
+    setStatus('asking mic…');
+    const modern=navigator.mediaDevices && navigator.mediaDevices.getUserMedia;
+    const legacy=navigator.getUserMedia||navigator.webkitGetUserMedia||navigator.mozGetUserMedia;
+    const legacyPromise=c=>new Promise((res,rej)=>(navigator.getUserMedia||navigator.webkitGetUserMedia||navigator.mozGetUserMedia).call(navigator,c,res,rej));
+    try{
+      const strict={audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}};
+      const stream = modern? await navigator.mediaDevices.getUserMedia(strict):await legacyPromise(strict);
+      await init(stream);
+    }catch(e1){
+      try{ const loose={audio:true}; const s2=modern?await navigator.mediaDevices.getUserMedia(loose):await legacyPromise(loose); await init(s2); }
+      catch(e2){ setStatus('mic blocked: '+((e2&&e2.name)||'Unsupported')); }
+    }
+  }
+  async function init(stream){
+    ctx=new (window.AudioContext||window.webkitAudioContext)();
+    if (ctx.state==='suspended' && ctx.resume){ try{ await ctx.resume(); }catch(_){} }
+    analyser=ctx.createAnalyser(); analyser.fftSize=fftSize;
+    source=ctx.createMediaStreamSource(stream); source.connect(analyser);
+    floatBuf=new Float32Array(analyser.fftSize);
+    running=true; setStatus('listening'); loop();
+  }
+  function stop(){
+    running=false; if (rafId) cancelAnimationFrame(rafId);
+    if (source && source.mediaStream) source.mediaStream.getTracks().forEach(t=>t.stop());
+    if (ctx) ctx.close();
+    setStatus('stopped'); setBlank();
+    pitchWin.length=0; emaHz=0;
+  }
+
+  function resetAll(){
+    try{
+      localStorage.removeItem('tdf_low');
+      localStorage.removeItem('tdf_high');
+      localStorage.removeItem('tdf_mid');
+    }catch(_){}
+    lowestHz = highestHz = midHz = null;
+    updateRangeUI(); setBlank(); setStatus('reset — ready when you are');
+    updateClassification();
+  }
+
+  function loop(){
+    if (!running) return;
+    rafId=requestAnimationFrame(loop);
+    analyser.getFloatTimeDomainData(floatBuf);
+
+    // input level
+    const level = rms(floatBuf);
+    setLevel(Math.min(1, level*3));
+    micDot(level > 0.01);
+
+    // pitch detect
+    let hz=yin(floatBuf, (source && source.context ? source.context.sampleRate : 44100));
+    if (hz>0){
+      if (emaHz===0) emaHz=hz; else emaHz=emaHz*(1-EMA_A)+hz*EMA_A;
+
+      // rolling median for stability
+      pitchWin.push(emaHz); if (pitchWin.length>MAX_FRAMES) pitchWin.shift();
+      const medHz = median(pitchWin);
+      const m = hzToMidi(medHz), n = Math.round(m);
+      const cents = 1200*Math.log2(medHz/(A4*Math.pow(2,(n-A4_MIDI)/12)));
+
+      $('#note').textContent = NOTE_NAMES[(n+1200)%12]+(Math.floor(n/12)-1);
+      $('#hz').textContent = medHz.toFixed(1)+' Hz';
+      $('#cents').textContent = (cents>=0?'+':'')+cents.toFixed(0)+' cents';
+    }
+  }
+
+  // Buttons
+  $('#startBtn').addEventListener('click', start);
+  $('#stopBtn').addEventListener('click', stop);
+  $('#resetBtn').addEventListener('click', resetAll);
+
+  $('#lowBtn').addEventListener('click', ()=>{
+    const med = pitchWin.length? median(pitchWin):0;
+    if (med>0){
+      lowestHz = (!lowestHz||med<lowestHz)? med : lowestHz;
+      try{localStorage.setItem('tdf_low',String(lowestHz));}catch(_){}
+      flash($('#lowBox')); updateRangeUI(); updateClassification();
+    }
+  });
+  $('#highBtn').addEventListener('click', ()=>{
+    const med = pitchWin.length? median(pitchWin):0;
+    if (med>0){
+      highestHz = (!highestHz||med>highestHz)? med : highestHz;
+      try{localStorage.setItem('tdf_high',String(highestHz));}catch(_){}
+      flash($('#highBox')); updateRangeUI(); updateClassification();
+    }
+  });
+  $('#midBtn').addEventListener('click', ()=>{
+    const med = pitchWin.length? median(pitchWin):0;
+    if (med>0){
+      midHz = med;
+      try{localStorage.setItem('tdf_mid',String(midHz));}catch(_){}
+      flash($('#midBox')); updateRangeUI(); updateClassification();
+    }
+  });
+
+  // restore saved on load
+  const l=Number(localStorage.getItem('tdf_low')||'');
+  const h=Number(localStorage.getItem('tdf_high')||'');
+  const m=Number(localStorage.getItem('tdf_mid')||'');
+  if (!isNaN(l)&&l>0) lowestHz=l;
+  if (!isNaN(h)&&h>0) highestHz=h;
+  if (!isNaN(m)&&m>0) midHz=m;
+  updateRangeUI(); setLevel(0); micDot(false); updateClassification();
+})();
+</script>
+</body>
+</html>
