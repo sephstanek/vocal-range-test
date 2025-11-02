@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tour de Fierce | Vocal Range Test</title>
+<style>
+  :root{
+    --bg1:#4d405b; --bg2:#322a46; --text:#eee; --muted:#c9c3d7;
+    --accent:#ffb52b; --button:#e6e6e6; --track:#5a4a5a; --fill:#35d07f;
+    --live:#4afc9e; --card:#2f2741; --cardBorder:rgba(255,255,255,.14);
+  }
+  html,body{height:100%;margin:0;background:radial-gradient(1200px 600px at 20% 20%,var(--bg1),var(--bg2));color:var(--text);font:17px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Helvetica,Arial,sans-serif}
+  .wrap{max-width:1100px;margin:18px auto;padding:10px 16px}
+  h1{font-weight:800;letter-spacing:.3px;margin:0 0 6px;font-size:22px}
+  .buttons{display:flex;flex-wrap:wrap;gap:10px}
+  button{appearance:none;border:0;padding:14px 18px;border-radius:22px;background:linear-gradient(#ffd27a,#ffb52b);color:#1d142a;font-weight:800;letter-spacing:.3px;cursor:pointer}
+  button.secondary{background:linear-gradient(#ffffff,#dcdcdc)}
+  .label{color:var(--muted);margin-top:8px}
+  .readout{margin-top:6px;min-height:28px;font-size:24px;font-weight:700}
+  .row{display:flex;gap:16px;margin:12px 0}
+  .cell{flex:1}
+  .levelWrap{display:flex;align-items:center;gap:10px;margin-top:10px}
+  .liveDot{width:12px;height:12px;border-radius:50%;background:#aaa;transition:all .2s ease}
+  .liveDot.on{background:#4afc9e;box-shadow:0 0 10px 2px rgba(74,252,158,.35)}
+  .meter{flex:1;height:14px;background:#5a4a5a;border-radius:7px;overflow:hidden}
+  .fill{width:0;height:100%;background:#35d07f;transition:width .08s linear}
+  .status{min-height:24px;font-weight:700}
+  .hint{font-size:14px;color:#ddd;margin-top:6px}
+  .card{margin-top:14px;background:#2f2741;border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:14px}
+  .card h3{margin:0 0 6px 0;font-size:19px}
+  .card p{margin:6px 0 10px 0;color:#efeaf9}
+  .btn{display:inline-block;padding:10px 14px;border-radius:10px;text-decoration:none;font-weight:800;background:#fff;color:#221a36}
+  .help{display:none;margin-top:14px;background:#2a2239;border:1px dashed rgba(255,255,255,.35);padding:12px;border-radius:12px}
+  .help ul{margin:8px 0 0 18px}
+  .help b{color:#fff}
+  .danger{background:#ffefef;color:#3b1530;border:1px solid #ffb1b1}
+  .openBtn{margin-top:8px;background:#fff}
+  .result{margin-top:16px}
+  .result h2{margin:0 0 6px 0;font-size:22px}
+  .badg{display:inline-block;padding:6px 10px;border-radius:999px;background:#fff;color:#1d1430;font-weight:800;margin-right:8px}
+  .ctaBtns{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Vocal Range Test | 100% Free & Online</h1>
+
+  <div class="buttons">
+    <button id="startBtn">START MICROPHONE</button>
+    <button id="stopBtn" class="secondary">STOP</button>
+    <button id="resetBtn" class="secondary">RESET</button>
+    <button id="lowBtn" class="secondary">MARK LOWEST</button>
+    <button id="highBtn" class="secondary">MARK HIGHEST</button>
+    <button id="midBtn" class="secondary">MARK COMFORTABLE</button>
+  </div>
+
+  <div class="label">Status</div>
+  <div class="status" id="status">idle</div>
+
+  <div id="help" class="help danger">
+    <b>We can’t access your mic yet.</b>
+    <ul>
+      <li>On iPhone: Settings → Safari → Microphone → <b>Allow</b>, then reload.</li>
+      <li>If you’re viewing inside another app, tap <b>Open in Safari</b> below.</li>
+      <li>If this is embedded in a page, try the <b>standalone</b> test:</li>
+    </ul>
+    <button id="openStandalone" class="openBtn">Open test in a new tab (iPhone fix)</button>
+  </div>
+
+  <div class="levelWrap">
+    <div id="liveDot" class="liveDot" title="Mic live"></div>
+    <div class="meter"><div id="levelFill" class="fill"></div></div>
+  </div>
+  <div class="hint">This bar shows <b>loudness</b> (not pitch). You can mark at any time.</div>
+
+  <div class="row">
+    <div class="cell">
+      <div class="label">Current Note</div>
+      <div id="note" class="readout">—</div>
+    </div>
+    <div class="cell">
+      <div class="label">Frequency</div>
+      <div id="hz" class="readout">— Hz</div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="cell">
+      <div class="label">Cents</div>
+      <div id="cents" class="readout">—</div>
+    </div>
+  </div>
+
+  <div class="row" style="margin-top:10px;border-top:1px solid rgba(255,255,255,.25);padding-top:10px">
+    <div class="cell"><div class="label">Lowest</div><div id="low" class="readout" style="font-size:20px">—</div></div>
+    <div class="cell"><div class="label">Highest</div><div id="high" class="readout" style="font-size:20px">—</div></div>
+  </div>
+  <div class="row">
+    <div class="cell"><div class="label">Comfortable</div><div id="mid" class="readout" style="font-size:20px">—</div></div>
+    <div class="cell"><div class="label">Octaves</div><div id="octs" class="readout" style="font-size:20px">—</div></div>
+  </div>
+
+  <div id="resultCard" class="card result" style="display:none">
+    <h2 id="rTitle">Your Voice Type</h2>
+    <div id="rBadges"></div>
+    <p id="rCopy"></p>
+    <div class="ctaBtns">
+      <a class="btn" href="https://www.tourdefierce.vip/services/voice-coaching" target="_blank" rel="noopener">Learn about coaching</a>
+      <a class="btn" href="https://www.tourdefierce.vip/voice-lessons-online" target="_blank" rel="noopener">Book a lesson</a>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const $ = s => document.querySelector(s);
+  const NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+  const A4=440, A4_MIDI=69;
+  function hzToMidi(hz){ return 12*Math.log2(hz/A4)+A4_MIDI; }
+  function midiToHz(m){ return A4*Math.pow(2,(m-A4_MIDI)/12); }
+  function midiToNoteName(m){ const n=Math.round(m); return NOTE_NAMES[(n+1200)%12]+(Math.floor(n/12)-1); }
+  function rms(arr){ let s=0; for(let i=0;i<arr.length;i++){ const v=arr[i]; s+=v*v; } return Math.sqrt(s/arr.length); }
+  function setLevel(p){ $('#levelFill').style.width=(Math.min(1,Math.max(0,p))*($('.meter').clientWidth))+'px'; }
+  function micDot(on){ $('#liveDot').classList.toggle('on', !!on); }
+  function setStatus(t){ $('#status').textContent=t; }
+
+  function yin(buf, sampleRate){
+    const W = buf.length, tauMax = Math.min(4096, Math.floor(W/2));
+    const diff = new Float32Array(tauMax);
+    let minTau=-1, minCMND=1;
+    for (let tau=1;tau<tauMax;tau++){
+      let sum=0; for (let i=0;i<W-tau;i++){ const d=buf[i]-buf[i+tau]; sum+=d*d; } diff[tau]=sum;
+    }
+    let run=0; const cmnd=new Float32Array(tauMax); cmnd[0]=1;
+    for (let tau=1;tau<tauMax;tau++){ run+=diff[tau]; cmnd[tau]=diff[tau]*(tau/run); if (tau>2 && cmnd[tau]<minCMND){minCMND=cmnd[tau];minTau=tau;} }
+    if (minTau<2 || minCMND>0.3) return -1;
+    const hz = sampleRate/minTau;
+    return (hz<40||hz>2000||!isFinite(hz)) ? -1 : hz;
+  }
+
+  let ctx, analyser, source, rafId, floatBuf;
+  let running=false, emaHz=0; const EMA_A=0.15;
+  const pitchWin=[]; const MAX_FRAMES=24;
+  let lowestHz=null, highestHz=null, midHz=null;
+
+  function median(arr){ const a=[...arr].sort((x,y)=>x-y); const m=Math.floor(a.length/2); return a.length%2?a[m]:(a[m-1]+a[m])/2; }
+
+  function updateRange(){
+    $('#low').textContent  = lowestHz? midiToNoteName(Math.round(hzToMidi(lowestHz))) : '—';
+    $('#high').textContent = highestHz? midiToNoteName(Math.round(hzToMidi(highestHz))) : '—';
+    $('#mid').textContent  = midHz? midiToNoteName(Math.round(hzToMidi(midHz))) : '—';
+    $('#octs').textContent = (lowestHz && highestHz)? (Math.log2(highestHz/lowestHz)).toFixed(2)+' octaves' : '—';
+    classifyAndShow();
+  }
+
+  function classifyAndShow(){
+    if(!lowestHz || !highestHz) return;
+    const low = lowestHz, high = highestHz;
+    const comfort = midHz || (low*Math.sqrt(high/low)); // geometric mid
+
+    const groups = [
+      {name:"Bass",        range:[50,196] , copy:"You’re in luck — at Tour de Fierce, it’s all about that bass! Our Founder & CEO Joseph Stanek sings bass professionally all around the world — so he knows exactly how to make those low notes AND high notes rumble. Book your lesson and you'll be shaking the walls in no time."},
+      {name:"Baritone",    range:[98,392] , copy:"All hail the baritone royalty. Joseph Stanek — Tour de Fierce’s Founder and CEO — is one too, and he’s ready to help you find that golden middle ground between grit and glamour. Book your lesson and join the baritone brotherhood."},
+      {name:"Tenor",       range:[130,523], copy:"Up there living your best life? That’s the tenor way. Most of Joseph's performing career is spent singing the high notes no one else can hit, so you're in the right place! Joseph has also worked alongside legends like Andrea Bocelli. Book your lesson and belt to the heavens."},
+      {name:"Alto / Contralto", range:[174,698], copy:"Sultry, rich, and full of depth — welcome to the alto life. Joseph’s specialty is working with lower treble voices... so buckle up! He's guided countless contraltos and altos toward confidence and control — no pushing, no pressure, just pure power. Book your lesson and own your lower glow."},
+      {name:"Mezzo-Soprano",   range:[196,880], copy:"Mezzo magic in the house! Joseph’s coached hundreds of mezzos — including powerhouse Jennifer Hudson — so he knows how to bring fire and finesse to your middle range. Book your lesson and let your voice shine."},
+      {name:"Soprano",     range:[261,1175], copy:"High notes? Please. You call that a Tuesday. One of Joseph’s closest clients, Kristin Chenoweth, has proven that sopranos can be both fierce and flawless — and you can too. Book your lesson and really learn how to sparkle up top."}
+    ];
+
+    const c = comfort;
+    let best = groups[0];
+    for(const g of groups){
+      const [lo,hi]=g.range;
+      if (c>=lo && c<=hi) { best=g; break; }
+      const overlap = Math.max(0, Math.min(hi, high) - Math.max(lo, low));
+      const bestOverlap = Math.max(0, Math.min(best.range[1], high) - Math.max(best.range[0], low));
+      if (overlap > bestOverlap) best = g;
+    }
+
+    const badge = (label,val)=>`<span class="badg">${label}: ${val}</span>`;
+    const lowN  = midiToNoteName(Math.round(hzToMidi(low)));
+    const highN = midiToNoteName(Math.round(hzToMidi(high)));
+    const midN  = midHz? midiToNoteName(Math.round(hzToMidi(midHz))) : '—';
+
+    $('#rTitle').textContent = `Your Voice Type: ${best.name}`;
+    $('#rBadges').innerHTML = badge('Lowest',lowN)+badge('Highest',highN)+badge('Comfort',midN);
+    $('#rCopy').textContent = best.copy;
+    $('#resultCard').style.display='block';
+  }
+
+  function showHelp(url){
+    const box = $('#help');
+    box.style.display='block';
+    $('#openStandalone').onclick = () => {
+      const target = url || window.location.href;
+      window.open(target, '_blank', 'noopener');
+    };
+  }
+
+  function isIOS(){ return /iPad|iPhone|iPod/.test(navigator.userAgent); }
+  function inIframe(){ try{ return window.top !== window.self; }catch(e){ return true; } }
+
+  async function start(){
+    if (running) return;
+    setStatus('asking mic…');
+    const unlock = () => { if (ctx && ctx.state==='suspended' && ctx.resume) ctx.resume(); window.removeEventListener('touchend', unlock); window.removeEventListener('click', unlock); };
+    window.addEventListener('touchend', unlock, {once:true});
+    window.addEventListener('click', unlock, {once:true});
+
+    const strict={audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}};
+    const legacyGet = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
+    const legacyP = (c)=>new Promise((res,rej)=>legacyGet.call(navigator,c,res,rej));
+    try{
+      const stream = navigator.mediaDevices? await navigator.mediaDevices.getUserMedia(strict) : await legacyP(strict);
+      await init(stream);
+    }catch(e){
+      const msg = (e && (e.name||e.message)) || 'UnknownError';
+      setStatus('mic blocked: '+msg);
+      if ((e && e.name === 'NotAllowedError') || (isIOS() && inIframe())){
+        showHelp('https://sephstanek.github.io/vocal-range-test/');
+      }
+    }
+  }
+
+  async function init(stream){
+    ctx=new (window.AudioContext||window.webkitAudioContext)();
+    if (ctx.state==='suspended' && ctx.resume){ try{ await ctx.resume(); }catch(_){ } }
+    analyser=ctx.createAnalyser(); analyser.fftSize=8192;
+    source=ctx.createMediaStreamSource(stream); source.connect(analyser);
+    floatBuf=new Float32Array(analyser.fftSize);
+    running=true; setStatus('listening'); loop();
+  }
+
+  function stop(){
+    running=false; if (rafId) cancelAnimationFrame(rafId);
+    if (source && source.mediaStream) source.mediaStream.getTracks().forEach(t=>t.stop());
+    if (ctx) ctx.close();
+    setStatus('stopped'); setLevel(0); micDot(false); pitchWin.length=0; emaHz=0;
+  }
+
+  function resetAll(){
+    lowestHz=highestHz=midHz=null; updateRange(); setStatus('reset — ready when you are');
+    $('#resultCard').style.display='none';
+  }
+
+  function loop(){
+    if (!running) return;
+    rafId=requestAnimationFrame(loop);
+    analyser.getFloatTimeDomainData(floatBuf);
+
+    const level = rms(floatBuf);
+    setLevel(Math.min(1, level*3));
+    micDot(level > 0.01);
+
+    let hz = yin(floatBuf, source.context.sampleRate);
+    if (hz>0){
+      if (emaHz===0) emaHz=hz; else emaHz=emaHz*(1-EMA_A)+hz*EMA_A;
+      pitchWin.push(emaHz); if (pitchWin.length>MAX_FRAMES) pitchWin.shift();
+      const medHz = median(pitchWin);
+      const m = hzToMidi(medHz), n = Math.round(m);
+      const cents = 1200*Math.log2(medHz/midiToHz(n));
+      $('#note').textContent = NOTE_NAMES[(n+1200)%12]+(Math.floor(n/12)-1);
+      $('#hz').textContent = medHz.toFixed(1)+' Hz';
+      $('#cents').textContent = (cents>=0?'+':'')+cents.toFixed(0)+' cents';
+    }
+  }
+
+  $('#startBtn').addEventListener('click', start);
+  $('#stopBtn').addEventListener('click', stop);
+  $('#resetBtn').addEventListener('click', resetAll);
+  $('#lowBtn').addEventListener('click', ()=>{ const med=pitchWin.length? median(pitchWin):0; if (med>0){ lowestHz = (!lowestHz||med<lowestHz)? med : lowestHz; updateRange(); } });
+  $('#highBtn').addEventListener('click', ()=>{ const med=pitchWin.length? median(pitchWin):0; if (med>0){ highestHz = (!highestHz||med>highestHz)? med : highestHz; updateRange(); } });
+  $('#midBtn').addEventListener('click',  ()=>{ const med=pitchWin.length? median(pitchWin):0; if (med>0){ midHz = med; updateRange(); } });
+
+  if (isIOS() && inIframe()){
+    $('#help').style.display='block';
+    $('#openStandalone').onclick = () => window.open('https://sephstanek.github.io/vocal-range-test/','_blank','noopener');
+  }
+})();
+</script>
+</body>
+</html>
